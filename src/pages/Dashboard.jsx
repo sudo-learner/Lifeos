@@ -138,8 +138,8 @@ export default function Dashboard() {
       <Card className="flex items-start gap-3 bg-aurora-soft border-violet/20">
         <LuQuote className="text-violet dark:text-teal-soft shrink-0 mt-1" size={20} />
         <div>
-          <p className="font-display text-base leading-snug">{quote.text}</p>
-          <p className="text-xs text-muted dark:text-muted-dark mt-1">— {quote.author}</p>
+          <p className="font-display text-base leading-snug text-black dark:text-ink-dark">{quote.text}</p>
+          <p className="text-xs text-black/70 dark:text-muted-dark mt-1">— {quote.author}</p>
         </div>
       </Card>
 

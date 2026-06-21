@@ -2,6 +2,7 @@ import { Outlet, useLocation } from 'react-router-dom'
 import Sidebar from './Sidebar'
 import TopBar from './TopBar'
 import CommandPalette from '../CommandPalette'
+import PomodoroWidget from '../PomodoroWidget'
 
 const TITLES = {
   '/': 'Dashboard',
@@ -33,6 +34,7 @@ export default function Layout() {
         </main>
       </div>
       <CommandPalette />
+      <PomodoroWidget />
     </div>
   )
 }
