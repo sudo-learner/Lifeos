@@ -1,7 +1,7 @@
 import { useEffect, Suspense, lazy } from 'react'
 import { Routes, Route } from 'react-router-dom'
 import Layout from './components/layout/Layout'
-import { seedRoadmapIfEmpty, initSettingsIfNeeded } from './db/db'
+import { initSettingsIfNeeded } from './db/db'
 
 const Dashboard = lazy(() => import('./pages/Dashboard'))
 const Routines = lazy(() => import('./pages/Routines'))
@@ -21,7 +21,6 @@ function PageLoader() {
 
 export default function App() {
   useEffect(() => {
-    seedRoadmapIfEmpty()
     initSettingsIfNeeded()
   }, [])
 
