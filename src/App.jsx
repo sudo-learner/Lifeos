@@ -21,8 +21,14 @@ function PageLoader() {
 
 export default function App() {
   useEffect(() => {
+<<<<<<< HEAD
   initSettingsIfNeeded()
 }, [])
+=======
+    initSettingsIfNeeded()
+  }, [])
+
+>>>>>>> a8b123a50482b2314ceebd2db4c8702d766be6eb
   return (
     <Suspense fallback={<PageLoader />}>
       <Routes>

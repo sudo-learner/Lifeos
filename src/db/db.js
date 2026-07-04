@@ -100,7 +100,9 @@ export async function resetAllData() {
   await db.settings.put(DEFAULT_SETTINGS)
 }
 
-// Seed the roadmap with the 380-day cybersecurity roadmap on first run only.
+// Seeds the 380-day cybersecurity roadmap. Not called automatically anymore —
+// kept here for anyone (e.g. the app owner) who wants to seed it manually via
+// the browser console, or import the equivalent backup JSON via Settings.
 export async function seedRoadmapIfEmpty() {
   const count = await db.roadmap.count()
   if (count === 0) {

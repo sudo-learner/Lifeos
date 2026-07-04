@@ -10,7 +10,7 @@ Built with **React + Vite + Tailwind CSS**, stored locally with **IndexedDB (Dex
 
 - **Dashboard** — today's completion %, streaks, total stats, weekly productivity score, level progress, and an "Aurora Heatmap" of your activity
 - **Daily Routines** — add, edit, reorder (drag & drop), categorize, prioritize, and track daily routines with a "Reset Today" option
-- **Roadmap Tracker** — supports 400+ items, with search, filters, categories, tags, due dates, bulk actions, and sorting. Pre-loaded with a 380-day cybersecurity learning roadmap (fully editable/removable)
+- **Roadmap Tracker** — supports 400+ items, with search, filters, categories, tags, due dates, bulk actions, and sorting. Starts empty for every user — build your own roadmap for any goal (fully editable/removable)
 - **Goals** — long-term and short-term goals with progress bars and deadlines
 - **Habit Tracker** — daily, weekly, or monthly habits with streaks and completion percentages
 - **Analytics** — daily/weekly/monthly/yearly trend charts, roadmap completion trend, and habit consistency charts
