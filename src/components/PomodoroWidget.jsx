@@ -59,7 +59,7 @@ export default function PomodoroWidget() {
   }, [running, secondsLeft])
 
   function toggleRunning() {
-    running ? pause() : start()
+    running ? pause(settings) : start(settings)
   }
 
   const totalSeconds = durations[phase] * 60

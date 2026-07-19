@@ -2,6 +2,9 @@ import { create } from 'zustand'
 import { db, getSettings } from '../db/db'
 import { todayKey } from '../utils/dateUtils'
 
+const LIVE_TAG = 'lifeos-pomodoro-live' // the ongoing "timer running" notification
+const ALERT_TAG = 'lifeos-pomodoro-alert' // the "phase finished" ping
+
 function durationsFromSettings(settings) {
   if (!settings) return { focus: 25, break: 5, longBreak: 15, beforeLong: 4 }
   return {
@@ -12,15 +15,64 @@ function durationsFromSettings(settings) {
   }
 }
 
-function notify(title, body, settings) {
-  if (settings?.notificationsEnabled && typeof Notification !== 'undefined' && Notification.permission === 'granted') {
-    try {
-      // `tag` replaces any previous pomodoro notification instead of stacking them.
-      new Notification(title, { body, icon: './icons/icon-192.png', tag: 'lifeos-pomodoro' })
-    } catch {
-      // ignore notification errors (e.g. unsupported context)
+// Shows a notification through the service worker when possible — this is
+// what makes it show up reliably in the phone's notification bar/tray (an
+// installed PWA's plain `new Notification()` calls are unreliable on
+// Android Chrome), and lets tapping it re-open the app. Falls back to a
+// page-level Notification for browsers/desktops without an active
+// service worker.
+async function showNotification(title, options, settings) {
+  if (!settings?.notificationsEnabled) return
+  if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return
+  try {
+    if ('serviceWorker' in navigator) {
+      const reg = await navigator.serviceWorker.ready
+      await reg.showNotification(title, options)
+      return
     }
+  } catch {
+    // fall through to page-level Notification below
   }
+  try {
+    new Notification(title, options)
+  } catch {
+    // ignore — unsupported context
+  }
+}
+
+async function closeNotification(tag) {
+  if (!('serviceWorker' in navigator)) return
+  try {
+    const reg = await navigator.serviceWorker.ready
+    const list = await reg.getNotifications({ tag })
+    list.forEach((n) => n.close())
+  } catch {
+    // ignore
+  }
+}
+
+const PHASE_TITLE = {
+  focus: 'Focus session',
+  break: 'Short break',
+  longBreak: 'Long break',
+}
+
+// Shows/refreshes the persistent "timer is running" notification in the
+// device notification bar. Its content is the fixed end time (e.g. "Ends
+// around 3:45 PM") rather than a live per-second countdown, since the web
+// Notification API has no way to tick down a number like a native app
+// notification can — this keeps it accurate without needing constant updates.
+async function showLiveNotification(settings) {
+  const { phase, endAt, running } = usePomodoroStore.getState()
+  if (!running || !endAt) return
+  const endTime = new Date(endAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+  await showNotification(`⏳ ${PHASE_TITLE[phase]} running`, {
+    body: `Ends around ${endTime}. Tap to open LifeOS.`,
+    tag: LIVE_TAG,
+    icon: './icons/icon-192.png',
+    silent: true,
+    requireInteraction: true,
+  }, settings)
 }
 
 // Single source of truth for the Pomodoro timer, shared by the full Pomodoro
@@ -55,24 +107,27 @@ export const usePomodoroStore = create((set, get) => ({
     }
   },
 
-  start() {
+  start(settings) {
     if (get().running || get().secondsLeft <= 0) return
     set({ running: true, endAt: Date.now() + get().secondsLeft * 1000 })
+    showLiveNotification(settings)
   },
 
-  pause() {
+  pause(settings) {
     if (!get().running) return
     const remaining = Math.max(0, Math.round((get().endAt - Date.now()) / 1000))
     set({ running: false, secondsLeft: remaining, endAt: null })
+    closeNotification(LIVE_TAG)
   },
 
-  toggle() {
-    get().running ? get().pause() : get().start()
+  toggle(settings) {
+    get().running ? get().pause(settings) : get().start(settings)
   },
 
   reset(settings) {
     const d = durationsFromSettings(settings)
     set({ running: false, endAt: null, secondsLeft: d[get().phase] * 60 })
+    closeNotification(LIVE_TAG)
   },
 
   async skip(settings) {
@@ -82,15 +137,16 @@ export const usePomodoroStore = create((set, get) => ({
   async _completePhase(settings) {
     const d = durationsFromSettings(settings)
     const { phase, sessionsInCycle } = get()
+    closeNotification(LIVE_TAG)
     if (phase === 'focus') {
       await db.pomodoro.add({ date: todayKey(), duration: d.focus, createdAt: new Date().toISOString() })
       const nextCount = sessionsInCycle + 1
       const next = nextCount % d.beforeLong === 0 ? 'longBreak' : 'break'
       set({ running: false, endAt: null, phase: next, secondsLeft: d[next] * 60, sessionsInCycle: nextCount })
-      notify('✅ Focus session complete!', 'Time for a break.', settings)
+      showNotification('✅ Focus session complete!', { body: 'Time for a break.', tag: ALERT_TAG, icon: './icons/icon-192.png' }, settings)
     } else {
       set({ running: false, endAt: null, phase: 'focus', secondsLeft: d.focus * 60 })
-      notify('⚡ Break finished!', 'Ready to focus again?', settings)
+      showNotification('⚡ Break finished!', { body: 'Ready to focus again?', tag: ALERT_TAG, icon: './icons/icon-192.png' }, settings)
     }
   },
 }))

@@ -51,7 +51,7 @@ export default function Pomodoro() {
   }, [settings, initFromSettings])
 
   function toggleRunning() {
-    running ? pause() : start()
+    running ? pause(settings) : start(settings)
   }
 
   async function updateDuration(key, value) {
