@@ -1,6 +1,7 @@
 # LifeOS — Personal Productivity Dashboard
 
 A free, all-in-one productivity dashboard that runs entirely in your browser. No sign-up, no servers, no ads — all your data stays on your device.
+LIVE DEMO OF WEBSITE :- https://sudo-learner.github.io/Lifeos/
 
 Built with **React + Vite + Tailwind CSS**, stored locally with **IndexedDB (Dexie.js)**, and installable as an offline app (PWA). Hosted for free on **GitHub Pages**.
 
