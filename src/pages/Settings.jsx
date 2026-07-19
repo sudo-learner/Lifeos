@@ -143,6 +143,14 @@ export default function Settings() {
         {notifPermission === 'denied' && (
           <p className="text-xs text-red-500 mt-2">Notifications are blocked in your browser settings. Enable them for this site to use this feature.</p>
         )}
+        {settings.notificationsEnabled && notifPermission === 'granted' && (
+          <button
+            onClick={() => new Notification('🔔 LifeOS test notification', { body: 'Notifications are working correctly.', icon: './icons/icon-192.png' })}
+            className="btn-secondary text-xs mt-3"
+          >
+            Send test notification
+          </button>
+        )}
         <div className="mt-3">
           <label className="label">Daily reminder time (while LifeOS is open)</label>
           <input

@@ -1,9 +1,10 @@
-import { useState, useEffect, useRef, useMemo } from 'react'
+import { useEffect, useMemo } from 'react'
 import { LuPlay, LuPause, LuRotateCcw, LuSkipForward, LuTimer, LuFlame } from 'react-icons/lu'
 import Card from '../components/ui/Card'
-import { db, updateSettings } from '../db/db'
+import { updateSettings } from '../db/db'
 import { useSettings, usePomodoroSessions } from '../hooks/useLiveData'
 import { todayKey } from '../utils/dateUtils'
+import { usePomodoroStore } from '../store/usePomodoroStore'
 
 const PHASE_META = {
   focus: { label: 'Focus', color: '#7C5CFC' },
@@ -22,11 +23,16 @@ export default function Pomodoro() {
   const sessions = usePomodoroSessions()
   const today = todayKey()
 
-  const [phase, setPhase] = useState('focus')
-  const [secondsLeft, setSecondsLeft] = useState(25 * 60)
-  const [running, setRunning] = useState(false)
-  const [sessionsInCycle, setSessionsInCycle] = useState(0)
-  const initialized = useRef(false)
+  const phase = usePomodoroStore((s) => s.phase)
+  const secondsLeft = usePomodoroStore((s) => s.secondsLeft)
+  const running = usePomodoroStore((s) => s.running)
+  const sessionsInCycle = usePomodoroStore((s) => s.sessionsInCycle)
+  const initFromSettings = usePomodoroStore((s) => s.initFromSettings)
+  const start = usePomodoroStore((s) => s.start)
+  const pause = usePomodoroStore((s) => s.pause)
+  const reset = usePomodoroStore((s) => s.reset)
+  const skip = usePomodoroStore((s) => s.skip)
+  const syncDuration = usePomodoroStore((s) => s.syncDuration)
 
   const durations = useMemo(() => {
     if (!settings) return { focus: 25, break: 5, longBreak: 15, beforeLong: 4 }
@@ -38,84 +44,24 @@ export default function Pomodoro() {
     }
   }, [settings])
 
-  // Initialize timer to current phase's duration once settings load
+  // Seed the shared store's timer once settings load (no-op if already
+  // initialized elsewhere, e.g. the floating widget got there first).
   useEffect(() => {
-    if (!settings || initialized.current) return
-    initialized.current = true
-    setSecondsLeft(durations[phase] * 60)
-  }, [settings, durations, phase])
-
-  // Ticking
-  useEffect(() => {
-    if (!running) return
-    const interval = setInterval(() => {
-      setSecondsLeft((s) => {
-        if (s <= 1) {
-          handlePhaseComplete()
-          return 0
-        }
-        return s - 1
-      })
-    }, 1000)
-    return () => clearInterval(interval)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [running, phase, durations, sessionsInCycle])
-
-  async function handlePhaseComplete() {
-    setRunning(false)
-    if (phase === 'focus') {
-      await db.pomodoro.add({ date: todayKey(), duration: durations.focus, createdAt: new Date().toISOString() })
-      notify('Focus session complete!', 'Time for a break.')
-      const nextCount = sessionsInCycle + 1
-      if (nextCount % durations.beforeLong === 0) {
-        setPhase('longBreak')
-        setSecondsLeft(durations.longBreak * 60)
-      } else {
-        setPhase('break')
-        setSecondsLeft(durations.break * 60)
-      }
-      setSessionsInCycle(nextCount)
-    } else {
-      notify('Break finished', 'Ready for another focus session?')
-      setPhase('focus')
-      setSecondsLeft(durations.focus * 60)
-    }
-  }
-
-  function notify(title, body) {
-    if (settings?.notificationsEnabled && typeof Notification !== 'undefined' && Notification.permission === 'granted') {
-      try {
-        new Notification(title, { body, icon: './icons/icon-192.png' })
-      } catch {
-        // ignore notification errors
-      }
-    }
-  }
+    if (settings) initFromSettings(settings)
+  }, [settings, initFromSettings])
 
   function toggleRunning() {
-    setRunning((r) => !r)
-  }
-
-  function reset() {
-    setRunning(false)
-    setSecondsLeft(durations[phase] * 60)
-  }
-
-  function skip() {
-    setRunning(false)
-    handlePhaseComplete()
+    running ? pause() : start()
   }
 
   async function updateDuration(key, value) {
     const v = Math.max(1, Math.min(180, Number(value) || 1))
     await updateSettings({ [key]: v })
-    if (key === durationSettingKey(phase) && !running) {
-      setSecondsLeft(v * 60)
-    }
+    syncDuration(durationPhaseFromKey(key), v)
   }
 
-  function durationSettingKey(p) {
-    return p === 'focus' ? 'pomodoroFocus' : p === 'break' ? 'pomodoroBreak' : 'pomodoroLongBreak'
+  function durationPhaseFromKey(key) {
+    return key === 'pomodoroFocus' ? 'focus' : key === 'pomodoroBreak' ? 'break' : 'longBreak'
   }
 
   const totalSeconds = durations[phase] * 60
@@ -161,12 +107,12 @@ export default function Pomodoro() {
           </div>
 
           <div className="flex items-center gap-3 mt-6">
-            <button className="btn-secondary p-3" onClick={reset} aria-label="Reset"><LuRotateCcw size={18} /></button>
+            <button className="btn-secondary p-3" onClick={() => reset(settings)} aria-label="Reset"><LuRotateCcw size={18} /></button>
             <button className="btn-primary px-8 py-3" onClick={toggleRunning}>
               {running ? <LuPause size={20} /> : <LuPlay size={20} />}
               {running ? 'Pause' : 'Start'}
             </button>
-            <button className="btn-secondary p-3" onClick={skip} aria-label="Skip"><LuSkipForward size={18} /></button>
+            <button className="btn-secondary p-3" onClick={() => skip(settings)} aria-label="Skip"><LuSkipForward size={18} /></button>
           </div>
         </Card>
 

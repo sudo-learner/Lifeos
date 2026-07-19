@@ -1,8 +1,7 @@
-import { useState, useEffect, useRef } from 'react'
+import { useEffect, useState } from 'react'
 import { LuTimer, LuPlay, LuPause, LuRotateCcw, LuX, LuMinus } from 'react-icons/lu'
-import { db } from '../db/db'
 import { useSettings } from '../hooks/useLiveData'
-import { todayKey } from '../utils/dateUtils'
+import { usePomodoroStore } from '../store/usePomodoroStore'
 
 function format(seconds) {
   const m = Math.floor(seconds / 60)
@@ -26,37 +25,28 @@ export default function PomodoroWidget() {
   const settings = useSettings()
   const [open, setOpen] = useState(false)
   const [minimized, setMinimized] = useState(false)
-  const [phase, setPhase] = useState('focus')
-  const [secondsLeft, setSecondsLeft] = useState(25 * 60)
-  const [running, setRunning] = useState(false)
-  const [sessionsInCycle, setSessionsInCycle] = useState(0)
-  const initialized = useRef(false)
+
+  const phase = usePomodoroStore((s) => s.phase)
+  const secondsLeft = usePomodoroStore((s) => s.secondsLeft)
+  const running = usePomodoroStore((s) => s.running)
+  const sessionsInCycle = usePomodoroStore((s) => s.sessionsInCycle)
+  const initFromSettings = usePomodoroStore((s) => s.initFromSettings)
+  const start = usePomodoroStore((s) => s.start)
+  const pause = usePomodoroStore((s) => s.pause)
+  const reset = usePomodoroStore((s) => s.reset)
 
   const durations = settings
     ? { focus: settings.pomodoroFocus, break: settings.pomodoroBreak, longBreak: settings.pomodoroLongBreak, beforeLong: settings.pomodoroSessionsBeforeLongBreak }
     : { focus: 25, break: 5, longBreak: 15, beforeLong: 4 }
 
+  // Seed the shared store's timer once settings load (no-op if the Pomodoro
+  // page already did this — same shared store either way).
   useEffect(() => {
-    if (!settings || initialized.current) return
-    initialized.current = true
-    setSecondsLeft(durations[phase] * 60)
-  }, [settings])
+    if (settings) initFromSettings(settings)
+  }, [settings, initFromSettings])
 
-  useEffect(() => {
-    if (!running) return
-    const interval = setInterval(() => {
-      setSecondsLeft((s) => {
-        if (s <= 1) {
-          handlePhaseComplete()
-          return 0
-        }
-        return s - 1
-      })
-    }, 1000)
-    return () => clearInterval(interval)
-  }, [running, phase, durations, sessionsInCycle])
-
-  // Update browser tab title when running
+  // Update browser tab title when running, so it's visible even while the
+  // widget itself is collapsed or another tab has focus.
   useEffect(() => {
     if (running) {
       document.title = `${format(secondsLeft)} — LifeOS`
@@ -68,36 +58,8 @@ export default function PomodoroWidget() {
     }
   }, [running, secondsLeft])
 
-  async function handlePhaseComplete() {
-    setRunning(false)
-    if (phase === 'focus') {
-      await db.pomodoro.add({ date: todayKey(), duration: durations.focus, createdAt: new Date().toISOString() })
-      const nextCount = sessionsInCycle + 1
-      if (nextCount % durations.beforeLong === 0) {
-        setPhase('longBreak')
-        setSecondsLeft(durations.longBreak * 60)
-      } else {
-        setPhase('break')
-        setSecondsLeft(durations.break * 60)
-      }
-      setSessionsInCycle(nextCount)
-      notify('✅ Focus session complete!', 'Time for a break.')
-    } else {
-      setPhase('focus')
-      setSecondsLeft(durations.focus * 60)
-      notify('⚡ Break finished!', 'Ready to focus again?')
-    }
-  }
-
-  function notify(title, body) {
-    if (settings?.notificationsEnabled && typeof Notification !== 'undefined' && Notification.permission === 'granted') {
-      try { new Notification(title, { body, icon: './icons/icon-192.png' }) } catch {}
-    }
-  }
-
-  function reset() {
-    setRunning(false)
-    setSecondsLeft(durations[phase] * 60)
+  function toggleRunning() {
+    running ? pause() : start()
   }
 
   const totalSeconds = durations[phase] * 60
@@ -136,7 +98,7 @@ export default function PomodoroWidget() {
               <button onClick={() => setMinimized((v) => !v)} className="p-1 hover:opacity-70 rounded" aria-label="Minimize">
                 <LuMinus size={14} />
               </button>
-              <button onClick={() => { setOpen(false); setRunning(false) }} className="p-1 hover:opacity-70 rounded" aria-label="Close">
+              <button onClick={() => setOpen(false)} className="p-1 hover:opacity-70 rounded" aria-label="Close">
                 <LuX size={14} />
               </button>
             </div>
@@ -166,9 +128,9 @@ export default function PomodoroWidget() {
 
               {/* Controls */}
               <div className="flex items-center gap-2">
-                <button onClick={reset} className="btn-ghost p-2 rounded-lg" aria-label="Reset"><LuRotateCcw size={16} /></button>
+                <button onClick={() => reset(settings)} className="btn-ghost p-2 rounded-lg" aria-label="Reset"><LuRotateCcw size={16} /></button>
                 <button
-                  onClick={() => setRunning((r) => !r)}
+                  onClick={toggleRunning}
                   className="btn-primary px-5 py-2 rounded-lg"
                 >
                   {running ? <LuPause size={16} /> : <LuPlay size={16} />}
@@ -187,7 +149,7 @@ export default function PomodoroWidget() {
             <div className="px-4 py-2 flex items-center justify-between">
               <span className="text-sm font-mono font-bold">{format(secondsLeft)}</span>
               <span className="text-xs text-muted dark:text-muted-dark">{PHASE_LABEL[phase]}</span>
-              <button onClick={() => setRunning((r) => !r)} className="btn-ghost p-1.5">
+              <button onClick={toggleRunning} className="btn-ghost p-1.5">
                 {running ? <LuPause size={14} /> : <LuPlay size={14} />}
               </button>
             </div>
