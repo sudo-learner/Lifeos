@@ -5,6 +5,7 @@ import Modal from '../components/ui/Modal'
 import { useSettings } from '../hooks/useLiveData'
 import { updateSettings, exportAllData, importAllData, resetAllData } from '../db/db'
 import { useThemeStore } from '../store/useThemeStore'
+import { notificationPermission, requestNotificationPermission, showAppNotification } from '../utils/notifications'
 
 const THEME_OPTIONS = [
   { id: 'light', label: 'Light', icon: LuSun },
@@ -19,7 +20,8 @@ export default function Settings() {
   const fileInputRef = useRef(null)
   const [confirmReset, setConfirmReset] = useState(false)
   const [importMessage, setImportMessage] = useState('')
-  const [notifPermission, setNotifPermission] = useState(typeof Notification !== 'undefined' ? Notification.permission : 'unsupported')
+  const [notifPermission, setNotifPermission] = useState(notificationPermission())
+  const [testNotifMessage, setTestNotifMessage] = useState('')
 
   if (!settings) return null
 
@@ -64,14 +66,28 @@ export default function Settings() {
 
   async function toggleNotifications() {
     if (!settings.notificationsEnabled) {
-      if (typeof Notification !== 'undefined') {
-        const perm = await Notification.requestPermission()
-        setNotifPermission(perm)
-        if (perm !== 'granted') return
-      }
+      const perm = await requestNotificationPermission()
+      setNotifPermission(perm)
+      if (perm !== 'granted') return
       await updateSettings({ notificationsEnabled: true })
     } else {
       await updateSettings({ notificationsEnabled: false })
+    }
+  }
+
+  async function handleTestNotification() {
+    setTestNotifMessage('')
+    const result = await showAppNotification('🔔 LifeOS test notification', {
+      body: 'Notifications are working correctly.',
+      icon: './icons/icon-192.png',
+      tag: 'lifeos-test',
+    })
+    if (!result.ok) {
+      setTestNotifMessage(
+        result.reason === 'no-permission'
+          ? 'Permission was not granted — try toggling notifications on again.'
+          : 'Could not show a notification on this browser/device.'
+      )
     }
   }
 
@@ -144,12 +160,12 @@ export default function Settings() {
           <p className="text-xs text-red-500 mt-2">Notifications are blocked in your browser settings. Enable them for this site to use this feature.</p>
         )}
         {settings.notificationsEnabled && notifPermission === 'granted' && (
-          <button
-            onClick={() => new Notification('🔔 LifeOS test notification', { body: 'Notifications are working correctly.', icon: './icons/icon-192.png' })}
-            className="btn-secondary text-xs mt-3"
-          >
-            Send test notification
-          </button>
+          <>
+            <button onClick={handleTestNotification} className="btn-secondary text-xs mt-3">
+              Send test notification
+            </button>
+            {testNotifMessage && <p className="text-xs text-red-500 mt-2">{testNotifMessage}</p>}
+          </>
         )}
         <div className="mt-3">
           <label className="label">Daily reminder time (while LifeOS is open)</label>
