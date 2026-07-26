@@ -42,7 +42,10 @@ export default function Notes() {
   const [saveError, setSaveError] = useState('')
   const textareaRef = useRef(null)
 
-  const notes = useMemo(() => allNotes.filter((n) => n.type === tab), [allNotes, tab])
+  // Saved notes use type: 'note' (singular) but the tab value is 'notes'
+  // (plural, matching the UI label) — map it here so the Notes tab actually
+  // matches its own notes instead of always filtering them out.
+  const notes = useMemo(() => allNotes.filter((n) => n.type === (tab === 'notes' ? 'note' : tab)), [allNotes, tab])
 
   const filtered = useMemo(() => {
     if (!search) return notes
