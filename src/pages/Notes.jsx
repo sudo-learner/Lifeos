@@ -39,6 +39,7 @@ export default function Notes() {
   const [form, setForm] = useState({ title: '', content: '' })
   const [preview, setPreview] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(null)
+  const [saveError, setSaveError] = useState('')
   const textareaRef = useRef(null)
 
   const notes = useMemo(() => allNotes.filter((n) => n.type === tab), [allNotes, tab])
@@ -53,6 +54,7 @@ export default function Notes() {
     setEditing(null)
     setForm({ title: '', content: '' })
     setPreview(false)
+    setSaveError('')
     setModalOpen(true)
   }
 
@@ -66,6 +68,7 @@ export default function Notes() {
     setEditing({ __newJournal: true, date: today })
     setForm({ title: '', content: '' })
     setPreview(false)
+    setSaveError('')
     setModalOpen(true)
   }
 
@@ -73,27 +76,40 @@ export default function Notes() {
     setEditing(note)
     setForm({ title: note.title || '', content: note.content || '' })
     setPreview(false)
+    setSaveError('')
     setModalOpen(true)
   }
 
   async function saveNote(e) {
     e.preventDefault()
+    setSaveError('')
     const now = new Date().toISOString()
-    if (tab === 'journal') {
-      if (editing?.id) {
-        await db.notes.update(editing.id, { content: form.content, updatedAt: now })
+    try {
+      if (tab === 'journal') {
+        if (editing?.id) {
+          await db.notes.update(editing.id, { content: form.content, updatedAt: now })
+        } else {
+          await db.notes.add({ type: 'journal', date: editing?.date || todayKey(), title: '', content: form.content, createdAt: now, updatedAt: now })
+        }
       } else {
-        await db.notes.add({ type: 'journal', date: editing?.date || todayKey(), title: '', content: form.content, createdAt: now, updatedAt: now })
+        if (!form.title.trim() && !form.content.trim()) {
+          setSaveError('Write a title or some content before saving.')
+          return
+        }
+        if (editing?.id) {
+          const updated = await db.notes.update(editing.id, { title: form.title.trim(), content: form.content, updatedAt: now })
+          if (!updated) {
+            setSaveError("Could not find this note to update — it may have been deleted. Try saving as a new note.")
+            return
+          }
+        } else {
+          await db.notes.add({ type: 'note', title: form.title.trim() || 'Untitled note', content: form.content, createdAt: now, updatedAt: now })
+        }
       }
-    } else {
-      if (!form.title.trim() && !form.content.trim()) return
-      if (editing?.id) {
-        await db.notes.update(editing.id, { title: form.title.trim(), content: form.content, updatedAt: now })
-      } else {
-        await db.notes.add({ type: 'note', title: form.title.trim() || 'Untitled note', content: form.content, createdAt: now, updatedAt: now })
-      }
+      setModalOpen(false)
+    } catch (err) {
+      setSaveError('Could not save this note. ' + (err?.message || 'Please try again.'))
     }
-    setModalOpen(false)
   }
 
   async function deleteNote(id) {
@@ -220,9 +236,12 @@ export default function Notes() {
             />
           )}
 
-          <div className="flex justify-end gap-2 pt-1">
-            <button type="button" className="btn-secondary" onClick={() => setModalOpen(false)}>Cancel</button>
-            <button type="submit" className="btn-primary">Save</button>
+          <div className="flex items-center justify-between gap-3 pt-1">
+            <p className="text-xs text-red-500">{saveError}</p>
+            <div className="flex gap-2 shrink-0">
+              <button type="button" className="btn-secondary" onClick={() => setModalOpen(false)}>Cancel</button>
+              <button type="submit" className="btn-primary">Save</button>
+            </div>
           </div>
         </form>
       </Modal>
