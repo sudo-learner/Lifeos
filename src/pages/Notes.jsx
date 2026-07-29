@@ -22,6 +22,12 @@ import { useNotes } from '../hooks/useLiveData'
 import { todayKey, formatDisplayDate } from '../utils/dateUtils'
 import { renderMarkdown, markdownToPlainText } from '../utils/markdown'
 
+function firstLine(content) {
+  const plain = markdownToPlainText(content).trim()
+  if (!plain) return ''
+  return plain.split('\n')[0]
+}
+
 const TOOLBAR = [
   { icon: LuBold, label: 'Bold', wrap: ['**', '**'] },
   { icon: LuItalic, label: 'Italic', wrap: ['*', '*'] },
@@ -183,7 +189,7 @@ export default function Notes() {
             <Card key={note.id} className="flex flex-col cursor-pointer hover:border-violet/40 transition-colors" onClick={() => openEdit(note)}>
               <div className="flex items-start justify-between gap-2">
                 <p className="font-medium font-display truncate">
-                  {note.type === 'journal' ? formatDisplayDate(note.date, { weekday: 'short' }) : note.title}
+                  {note.type === 'journal' ? (firstLine(note.content) || formatDisplayDate(note.date, { weekday: 'short' })) : note.title}
                 </p>
                 <div className="flex items-center gap-1 shrink-0 -mr-1 -mt-1">
                   <button className="btn-ghost p-1.5" onClick={(e) => { e.stopPropagation(); openEdit(note) }} aria-label="Edit"><LuPencil size={14} /></button>
@@ -204,7 +210,7 @@ export default function Notes() {
         open={modalOpen}
         onClose={() => setModalOpen(false)}
         title={tab === 'journal' ? formatDisplayDate(editing?.date || todayKey(), { weekday: 'long' }) : editing ? 'Edit Note' : 'New Note'}
-        maxWidth="max-w-2xl"
+        maxWidth="max-w-2xl lg:max-w-4xl"
       >
         <form onSubmit={saveNote} className="space-y-3">
           {tab === 'notes' && (
@@ -218,26 +224,32 @@ export default function Notes() {
               </button>
             ))}
             <div className="flex-1" />
-            <button type="button" className={`btn-ghost p-2 ${!preview ? 'text-violet dark:text-teal-soft' : ''}`} title="Write" onClick={() => setPreview(false)}>
+            {/* On desktop both write + preview show side by side, so this
+                toggle is only needed on smaller screens. */}
+            <button type="button" className={`btn-ghost p-2 lg:hidden ${!preview ? 'text-violet dark:text-teal-soft' : ''}`} title="Write" onClick={() => setPreview(false)}>
               <LuPenLine size={15} />
             </button>
-            <button type="button" className={`btn-ghost p-2 ${preview ? 'text-violet dark:text-teal-soft' : ''}`} title="Preview" onClick={() => setPreview(true)}>
+            <button type="button" className={`btn-ghost p-2 lg:hidden ${preview ? 'text-violet dark:text-teal-soft' : ''}`} title="Preview" onClick={() => setPreview(true)}>
               <LuEye size={15} />
             </button>
           </div>
 
-          {preview ? (
-            <div className="input min-h-[240px] prose-sm" dangerouslySetInnerHTML={{ __html: renderMarkdown(form.content) || '<p class="text-muted">Nothing to preview yet.</p>' }} />
-          ) : (
-            <textarea
-              ref={textareaRef}
-              className="input min-h-[240px] font-mono text-sm"
-              value={form.content}
-              onChange={(e) => setForm({ ...form, content: e.target.value })}
-              placeholder={'Write in Markdown...\n\n# Heading\n**bold** and *italic*\n- bullet point\n- [ ] checkbox item'}
-              autoFocus={tab === 'journal'}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+            <div className={preview ? 'hidden lg:block' : 'block'}>
+              <textarea
+                ref={textareaRef}
+                className="input min-h-[240px] lg:min-h-[320px] font-mono text-sm w-full"
+                value={form.content}
+                onChange={(e) => setForm({ ...form, content: e.target.value })}
+                placeholder={'Write in Markdown...\n\n# Heading\n**bold** and *italic*\n- bullet point\n- [ ] checkbox item'}
+                autoFocus={tab === 'journal'}
+              />
+            </div>
+            <div
+              className={`${preview ? 'block' : 'hidden lg:block'} input min-h-[240px] lg:min-h-[320px] prose-sm overflow-y-auto`}
+              dangerouslySetInnerHTML={{ __html: renderMarkdown(form.content) || '<p class="text-muted">Nothing to preview yet.</p>' }}
             />
-          )}
+          </div>
 
           <div className="flex items-center justify-between gap-3 pt-1">
             <p className="text-xs text-red-500">{saveError}</p>
