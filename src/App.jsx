@@ -1,7 +1,8 @@
 import { useEffect, Suspense, lazy } from 'react'
 import { Routes, Route } from 'react-router-dom'
 import Layout from './components/layout/Layout'
-import { initSettingsIfNeeded } from './db/db'
+import { initSettingsIfNeeded, getSettings } from './db/db'
+import { runAutoBackupIfDue } from './utils/backup'
 
 const Dashboard = lazy(() => import('./pages/Dashboard'))
 const Routines = lazy(() => import('./pages/Routines'))
@@ -21,8 +22,13 @@ function PageLoader() {
 
 export default function App() {
   useEffect(() => {
-  initSettingsIfNeeded()
-}, [])
+    async function boot() {
+      await initSettingsIfNeeded()
+      const settings = await getSettings()
+      runAutoBackupIfDue(settings)
+    }
+    boot()
+  }, [])
   return (
     <Suspense fallback={<PageLoader />}>
       <Routes>

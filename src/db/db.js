@@ -29,6 +29,9 @@ export const DEFAULT_SETTINGS = {
   notificationsEnabled: false,
   reminderTime: '20:00',
   dailyResetDone: null, // date string of the last automatic daily reset
+  autoBackupEnabled: false,
+  autoBackupFrequencyDays: 7,
+  lastBackupAt: null, // ISO timestamp of the last successful backup (manual or automatic)
 }
 
 export async function getSettings() {

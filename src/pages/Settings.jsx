@@ -3,9 +3,10 @@ import { LuSun, LuMoon, LuMonitor, LuDownload, LuUpload, LuTrash2, LuBell, LuTar
 import Card from '../components/ui/Card'
 import Modal from '../components/ui/Modal'
 import { useSettings } from '../hooks/useLiveData'
-import { updateSettings, exportAllData, importAllData, resetAllData } from '../db/db'
+import { updateSettings, importAllData, resetAllData } from '../db/db'
 import { useThemeStore } from '../store/useThemeStore'
 import { notificationPermission, requestNotificationPermission, showAppNotification } from '../utils/notifications'
+import { triggerBackupDownload, daysSince } from '../utils/backup'
 
 const THEME_OPTIONS = [
   { id: 'light', label: 'Light', icon: LuSun },
@@ -26,16 +27,7 @@ export default function Settings() {
   if (!settings) return null
 
   async function handleExport() {
-    const data = await exportAllData()
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `lifeos-backup-${new Date().toISOString().slice(0, 10)}.json`
-    document.body.appendChild(a)
-    a.click()
-    a.remove()
-    URL.revokeObjectURL(url)
+    await triggerBackupDownload()
   }
 
   function handleImportClick() {
@@ -182,14 +174,57 @@ export default function Settings() {
       <Card>
         <h2 className="font-display font-semibold mb-3">Backup & Restore</h2>
         <p className="text-sm text-muted dark:text-muted-dark mb-3">
-          All your data lives only in this browser. Export a backup regularly, especially before clearing browser data or switching devices.
+          All your data lives only in this browser. Export a backup regularly, especially before uninstalling the app, clearing browser data, or switching devices.
         </p>
+
+        <p className="text-sm mb-3">
+          Last backup:{' '}
+          <span className={daysSince(settings.lastBackupAt) > (settings.autoBackupFrequencyDays || 7) ? 'text-red-500' : 'text-ink dark:text-ink-dark'}>
+            {settings.lastBackupAt
+              ? `${new Date(settings.lastBackupAt).toLocaleDateString()} (${Math.floor(daysSince(settings.lastBackupAt))} day${Math.floor(daysSince(settings.lastBackupAt)) === 1 ? '' : 's'} ago)`
+              : 'Never'}
+          </span>
+        </p>
+
         <div className="flex flex-wrap gap-2">
           <button className="btn-secondary" onClick={handleExport}><LuDownload size={16} /> Export Backup (JSON)</button>
           <button className="btn-secondary" onClick={handleImportClick}><LuUpload size={16} /> Import Backup</button>
           <input ref={fileInputRef} type="file" accept="application/json" className="hidden" onChange={handleImportFile} />
         </div>
         {importMessage && <p className="text-sm mt-2 text-violet dark:text-teal-soft">{importMessage}</p>}
+
+        <div className="mt-4 pt-4 border-t border-border dark:border-border-dark flex items-center justify-between gap-3">
+          <div>
+            <p className="text-sm font-medium">Auto-backup</p>
+            <p className="text-xs text-muted dark:text-muted-dark">
+              Automatically downloads a fresh backup file every {settings.autoBackupFrequencyDays || 7} days when you open the app — no need to remember.
+            </p>
+          </div>
+          <button
+            role="switch"
+            aria-checked={settings.autoBackupEnabled}
+            onClick={() => updateSettings({ autoBackupEnabled: !settings.autoBackupEnabled })}
+            className={`shrink-0 w-11 h-6 rounded-full transition-colors relative ${settings.autoBackupEnabled ? 'bg-violet dark:bg-teal-soft' : 'bg-surface2 dark:bg-surface2-dark'}`}
+          >
+            <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white transition-transform ${settings.autoBackupEnabled ? 'translate-x-5' : 'translate-x-0.5'}`} />
+          </button>
+        </div>
+        {settings.autoBackupEnabled && (
+          <div className="mt-3 flex items-center justify-between gap-3">
+            <label className="text-sm text-muted dark:text-muted-dark">Backup every</label>
+            <div className="flex items-center gap-2">
+              <input
+                type="number"
+                min={1}
+                max={30}
+                className="input w-16 text-center"
+                value={settings.autoBackupFrequencyDays || 7}
+                onChange={(e) => updateSettings({ autoBackupFrequencyDays: Math.max(1, Math.min(30, Number(e.target.value) || 7)) })}
+              />
+              <span className="text-sm text-muted dark:text-muted-dark">days</span>
+            </div>
+          </div>
+        )}
       </Card>
 
       {/* Danger zone */}
