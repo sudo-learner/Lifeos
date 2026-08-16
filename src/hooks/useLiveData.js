@@ -41,3 +41,7 @@ export function usePomodoroSessions() {
 export function useSettings() {
   return useLiveQuery(() => getSettings(), [], null)
 }
+
+export function useTodosForDate(date) {
+  return useLiveQuery(() => db.todos.where('date').equals(date).sortBy('order'), [date], [])
+}

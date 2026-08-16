@@ -14,6 +14,7 @@ import Card from '../components/ui/Card'
 import StatCard from '../components/ui/StatCard'
 import ProgressBar from '../components/ui/ProgressBar'
 import Heatmap from '../components/Heatmap'
+import TodoList from '../components/TodoList'
 import {
   useRoutines,
   useAllRoutineLogs,
@@ -142,6 +143,9 @@ export default function Dashboard() {
           <p className="text-xs text-black/70 dark:text-muted-dark mt-1">— {quote.author}</p>
         </div>
       </Card>
+
+      {/* To-Do List: quick day-by-day planning (today, tomorrow, or any picked date) */}
+      <TodoList />
 
       {/* Quick stats */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">

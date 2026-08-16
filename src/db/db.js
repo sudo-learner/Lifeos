@@ -17,6 +17,22 @@ db.version(1).stores({
   settings: 'id',
 })
 
+// v2 adds the dashboard Todo List — day-by-day plans (today, tomorrow, or
+// any date picked from the date field), separate from the long-running
+// roadmap/goals/habits.
+db.version(2).stores({
+  routines: '++id, order, category, priority',
+  routineLogs: '++id, routineId, date, [routineId+date]',
+  roadmap: '++id, order, day, category, priority, completed',
+  goals: '++id, type, completed, deadline',
+  habits: '++id, order, frequency',
+  habitLogs: '++id, habitId, date, [habitId+date]',
+  notes: '++id, type, updatedAt',
+  pomodoro: '++id, date',
+  settings: 'id',
+  todos: '++id, date, order, completed',
+})
+
 // ---------- Settings ----------
 export const DEFAULT_SETTINGS = {
   id: 1,
@@ -59,7 +75,7 @@ export async function updateSettings(patch) {
 }
 
 // ---------- Backup / Restore ----------
-const TABLES = ['routines', 'routineLogs', 'roadmap', 'goals', 'habits', 'habitLogs', 'notes', 'pomodoro', 'settings']
+const TABLES = ['routines', 'routineLogs', 'roadmap', 'goals', 'habits', 'habitLogs', 'notes', 'pomodoro', 'settings', 'todos']
 
 export async function exportAllData() {
   const data = {}
